@@ -1,0 +1,42 @@
+import pandas as pd
+from sklearn.linear_model import LinearRegression
+from sklearn.model_selection import train_test_split
+# 你可能还需要 import joblib 来保存你的模型
+
+# 1. 加载 Hoffman 数据集
+# (假设你已经从 GitHub 下载了 'data/ppg-csv' 里的一个CSV文件)
+try:
+    # 你需要把这里的 'path/to/your/file.csv' 换成你下载的实际路径
+    data = pd.read_csv('data/ppg-csv/subject_10001_Task_1.csv')
+except FileNotFoundError:
+    print("请从 GitHub 仓库下载 CSV 文件并更新路径")
+    data = pd.DataFrame() # 创建一个空DaraFrame以避免后续代码出错
+
+if not data.empty:
+    # 2. 准备 X (特征) 和 y (标签)
+    # 你需要查看CSV里的实际列名来确定特征
+    # 假设特征是 'R_avg', 'G_avg', 'B_avg'
+    feature_columns = ['R_avg', 'G_avg', 'B_avg'] 
+    target_column = 'SpO2 1' # 我们选择一个血氧仪的读数作为标准答案
+
+    X = data[feature_columns]
+    y = data[target_column]
+
+    # (可选但推荐) 分割训练集和测试集
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+    # 3. 创建并训练模型
+    # 就像幻灯片建议的，我们用一个简单的线性回归模型
+    model = LinearRegression()
+    model.fit(X_train, y_train)
+
+    print("模型训练完毕！")
+
+    # 4. 评估模型 (可选)
+    score = model.score(X_test, y_test)
+    print(f"模型在测试集上的 R^2 分数: {score:.4f}")
+
+    # 5. 保存模型
+    # 你需要把这个训练好的模型文件 (.pkl) 放到你的安卓APP中
+    # import joblib
+    # joblib.dump(model, 'my_spo2_model.pkl')
