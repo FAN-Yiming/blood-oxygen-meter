@@ -1,42 +1,99 @@
 import pandas as pd
 from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
-# 你可能还需要 import joblib 来保存你的模型
+import joblib # 导入 joblib
+import os     # 导入 os 来帮助构建文件路径
 
-# 1. 加载 Hoffman 数据集
-# (假设你已经从 GitHub 下载了 'data/ppg-csv' 里的一个CSV文件)
-try:
-    # 你需要把这里的 'path/to/your/file.csv' 换成你下载的实际路径
-    data = pd.read_csv('data/ppg-csv/subject_10001_Task_1.csv')
-except FileNotFoundError:
-    print("请从 GitHub 仓库下载 CSV 文件并更新路径")
-    data = pd.DataFrame() # 创建一个空DaraFrame以避免后续代码出错
+# --- 1. 加载并合并所有数据文件 ---
 
-if not data.empty:
-    # 2. 准备 X (特征) 和 y (标签)
-    # 你需要查看CSV里的实际列名来确定特征
-    # 假设特征是 'R_avg', 'G_avg', 'B_avg'
-    feature_columns = ['R_avg', 'G_avg', 'B_avg'] 
-    target_column = 'SpO2 1' # 我们选择一个血氧仪的读数作为标准答案
+# !! 重要: 请把 'path/to/your/data/folder' 换成你存放6个CSV文件的实际文件夹路径 !!
+# 比如，如果你在 'blood-oxygen-meter/data' 文件夹下
+data_directory = 'blood-oxygen-meter/data' 
 
-    X = data[feature_columns]
-    y = data[target_column]
+# 6个数据文件的文件名
+file_names = [
+    '100001.csv', 
+    '100002.csv', 
+    '100003.csv', 
+    '100004.csv', 
+    '100005.csv', 
+    '100006.csv',
+'200001.csv', 
+    '200002.csv', 
+    '200003.csv', 
+    '200004.csv', 
+    '200005.csv', 
+    '200006.csv'
+]
 
-    # (可选但推荐) 分割训练集和测试集
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+all_data_frames = [] # 准备一个列表来存放所有加载的数据
+all_files_found = True
 
-    # 3. 创建并训练模型
-    # 就像幻灯片建议的，我们用一个简单的线性回归模型
-    model = LinearRegression()
-    model.fit(X_train, y_train)
+print(f"开始从 '{data_directory}' 加载数据...")
 
-    print("模型训练完毕！")
+for file_name in file_names:
+    # os.path.join 会智能地拼接路径 (例如: 'data/folder/100001.csv')
+    file_path = os.path.join(data_directory, file_name)
+    
+    try:
+        df = pd.read_csv(file_path)
+        all_data_frames.append(df)
+        print(f" - 成功加载: {file_name} (共 {len(df)} 行)")
+    except FileNotFoundError:
+        print(f"!! 错误: 找不到文件 {file_path}")
+        print(f"!! 请确保 data_directory 路径设置正确，并且所有6个CSV文件都在该路径下。")
+        all_files_found = False
+        break # 如果有一个文件找不到，就停止
 
-    # 4. 评估模型 (可选)
-    score = model.score(X_test, y_test)
-    print(f"模型在测试集上的 R^2 分数: {score:.4f}")
+# 只有所有文件都找到了，才继续
+if all_files_found and all_data_frames:
+    
+    # 使用 pd.concat 将列表中的所有 DataFrame 合并成一个
+    data = pd.concat(all_data_frames, ignore_index=True)
+    print(f"\n成功合并所有数据！总行数: {len(data)}")
 
-    # 5. 保存模型
-    # 你需要把这个训练好的模型文件 (.pkl) 放到你的安卓APP中
-    # import joblib
-    # joblib.dump(model, 'my_spo2_model.pkl')
+    # --- 2. 准备 X (特征) 和 y (标签) ---
+    
+    # 检查CSV列名，这里我们假设特征是 'R_avg', 'G_avg', 'B_avg'
+    # 标签(标准答案)是 'SpO2 1'
+    feature_columns = ['R_avg', 'G_avg', 'B_avg']
+    target_column = 'SpO2 1' 
+
+    # 检查所需列是否存在
+    required_columns = feature_columns + [target_column]
+    missing_columns = [col for col in required_columns if col not in data.columns]
+
+    if missing_columns:
+        print(f"!! 错误: 数据中缺少以下必需列: {missing_columns}")
+        print(f"!! 请检查你的CSV文件，确保它们包含 '{', '.join(required_columns)}'。")
+    else:
+        X = data[feature_columns]
+        y = data[target_column]
+
+        # --- 3. 分割训练集和测试集 ---
+        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+        print(f"数据已分割: {len(X_train)}行用于训练, {len(X_test)}行用于测试。")
+
+        # --- 4. 创建并训练模型 ---
+        print("开始训练线性回归模型...")
+        model = LinearRegression()
+        model.fit(X_train, y_train)
+        print("模型训练完毕！")
+
+        # --- 5. 评估模型 ---
+        score = model.score(X_test, y_test)
+        print(f"模型在测试集上的 R^2 分数: {score:.4f}")
+        print("(R^2 分数越接近 1.0 越好)")
+
+        # --- 6. 保存模型 ---
+        # 将训练好的模型保存为 .pkl 文件
+        # 这个文件需要被放到你的安卓APP的 assets 目录中
+        model_filename = 'spo2_model_combined.pkl'
+        joblib.dump(model, model_filename)
+        print(f"模型已保存为: {model_filename}")
+
+elif not all_files_found:
+    print("\n由于文件缺失，模型训练已停止。")
+else:
+    print("\n没有加载到任何数据，请检查你的路径和文件。")
+
