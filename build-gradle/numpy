@@ -1,0 +1,10 @@
+// 在 android.defaultConfig { ... } 中
+python {
+    // ...
+    pip {
+        // 你的模型需要 joblib 和 numpy
+        install "joblib"
+        install "numpy"
+        install "scikit-learn" // joblib 经常是 sklearn 的一部分
+    }
+}
