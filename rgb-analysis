@@ -1,0 +1,125 @@
+package com.akexorcist.example.camerax
+
+import android.Manifest
+import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Color
+import android.os.Bundle
+import android.widget.Button
+import android.widget.ImageView
+import android.widget.TextView
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
+
+class MainActivity : AppCompatActivity() {
+
+    // 用来存储拍下来的照片
+    private var currentBitmap: Bitmap? = null
+
+    // UI 控件
+    private lateinit var imageView: ImageView
+    private lateinit var textViewResult: TextView
+    private lateinit var buttonTakePhoto: Button
+    private lateinit var buttonAnalyze: Button
+
+    // --- 1. 准备“拍照”的启动器 ---
+    // 这个启动器会打开相机，拍照，并返回一个 Bitmap 缩略图
+    private val takePictureLauncher = registerForActivityResult(ActivityResultContracts.TakePicturePreview()) { bitmap ->
+        if (bitmap != null) {
+            // 成功获取照片
+            currentBitmap = bitmap
+            imageView.setImageBitmap(currentBitmap)
+            textViewResult.text = "照片已获取，请点击分析。"
+        } else {
+            // 用户取消了拍照
+            Toast.makeText(this, "未拍摄照片", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // --- 2. 准备“请求权限”的启动器 ---
+    private val requestPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+        if (isGranted) {
+            // 用户同意了权限，直接启动相机
+            launchCamera()
+        } else {
+            // 用户拒绝了权限
+            Toast.makeText(this, "需要相机权限才能拍照", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+
+        // 初始化 UI 控件
+        imageView = findViewById(R.id.imageView)
+        textViewResult = findViewById(R.id.textViewResult)
+        buttonTakePhoto = findViewById(R.id.buttonTakePhoto)
+        buttonAnalyze = findViewById(R.id.buttonAnalyze)
+
+        // --- 3. 设置“拍照”按钮的点击事件 ---
+        buttonTakePhoto.setOnClickListener {
+            // 检查是否已经有相机权限
+            when (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA)) {
+                PackageManager.PERMISSION_GRANTED -> {
+                    // 已经有权限，直接打开相机
+                    launchCamera()
+                }
+                else -> {
+                    // 没有权限，发起请求
+                    requestPermissionLauncher.launch(Manifest.permission.CAMERA)
+                }
+            }
+        }
+
+        // --- 4. 设置“分析”按钮的点击事件 ---
+        buttonAnalyze.setOnClickListener {
+            if (currentBitmap != null) {
+                // 如果照片存在，就开始分析
+                analyzeBitmap(currentBitmap!!)
+            } else {
+                Toast.makeText(this, "请先拍照", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    // 启动相机
+    private fun launchCamera() {
+        takePictureLauncher.launch(null) // 传入 null 表示使用默认参数
+    }
+
+    // --- 5. 核心：分析 Bitmap 的 RGB 值 ---
+    private fun analyzeBitmap(bitmap: Bitmap) {
+        val width = bitmap.width
+        val height = bitmap.height
+        
+        // 使用 Long 类型防止计算大数据时溢出
+        var totalRed: Long = 0
+        var totalGreen: Long = 0
+        var totalBlue: Long = 0
+
+        // 一次性获取所有像素，这比逐个像素读取 (getPixel) 快非常多
+        val pixels = IntArray(width * height)
+        bitmap.getPixels(pixels, 0, width, 0, 0, width, height)
+
+        // 遍历所有像素
+        for (pixelColor in pixels) {
+            // 从一个 Int 类型的像素值中分离出 R, G, B
+            totalRed += Color.red(pixelColor)
+            totalGreen += Color.green(pixelColor)
+            totalBlue += Color.blue(pixelColor)
+        }
+
+        val pixelCount = (width * height).toLong()
+        
+        // 计算平均值
+        val avgRed = (totalRed / pixelCount).toInt()
+        val avgGreen = (totalGreen / pixelCount).toInt()
+        val avgBlue = (totalBlue / pixelCount).toInt()
+
+        // 在 TextView 上显示结果
+        textViewResult.text = "分析完成！\n平均 RGB: ($avgRed, $avgGreen, $avgBlue)"
+    }
+}
