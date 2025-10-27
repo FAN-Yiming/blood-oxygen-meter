@@ -1,24 +1,42 @@
-package com.akexorcist.example.camerax
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp"
+    tools:context=".MainActivity">
 
-import androidx.test.InstrumentationRegistry
-import androidx.test.runner.AndroidJUnit4
+    <Button
+        android:id="@+id/buttonTakePhoto"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="1. 打开相机拍照" />
 
-import org.junit.Test
-import org.junit.runner.RunWith
+    <ImageView
+        android:id="@+id/imageView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="16dp"
+        android:background="#E0E0E0"
+        android:scaleType="fitCenter"
+        android:contentDescription="拍下的照片" />
 
-import org.junit.Assert.*
+    <Button
+        android:id="@+id/buttonAnalyze"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="2. 分析照片 RGB" />
 
-/**
- * Instrumented test, which will execute on an Android device.
- *
- * See [testing documentation](http://d.android.com/tools/testing).
- */
-@RunWith(AndroidJUnit4::class)
-class ExampleInstrumentedTest {
-    @Test
-    fun useAppContext() {
-        // Context of the app under test.
-        val appContext = InstrumentationRegistry.getTargetContext()
-        assertEquals("com.akexorcist.example.camerax", appContext.packageName)
-    }
-}
+    <TextView
+        android:id="@+id/textViewResult"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="分析结果将显示在这里"
+        android:textSize="18sp"
+        android:gravity="center" />
+
+</LinearLayout>
