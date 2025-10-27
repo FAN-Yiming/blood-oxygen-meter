@@ -1,0 +1,102 @@
+import androidx.appcompat.app.AppCompatActivity;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.Button;
+import android.widget.TextView;
+import android.widget.Toast;
+
+import com.chaquo.python.PyObject;
+import com.chaquo.python.Python;
+import com.chaquo.python.android.AndroidPlatform;
+
+public class Spo2Activity extends AppCompatActivity {
+
+    private TextView tvResult;
+    private Button btnPredict;
+    private PyObject pyModelModule; // 用来持有 Python 脚本 (model_predictor)
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        
+        // 假设你有一个布局 (activity_spo2.xml) 
+        // 包含一个 TextView (tv_result) 和一个 Button (btn_predict)
+        // setContentView(R.layout.activity_spo2);
+        // tvResult = findViewById(R.id.tv_result);
+        // btnPredict = findViewById(R.id.btn_predict);
+
+        // 1. 初始化 Chaquopy Python 环境
+        initPython();
+
+        // 2. 获取 Python 脚本 (model_predictor.py)
+        // Chaquopy 会自动找到 'app/src/main/python/' 目录下的文件
+        try {
+            pyModelModule = Python.getInstance().getModule("model_predictor");
+            
+            // 3. (推荐) 预加载模型，这样第一次点击就不会慢
+            // 警告: 这会阻塞主线程，最好在后台线程中执行此操作！
+            // 为了演示简单，我们暂时在主线程调用
+            String loadMsg = pyModelModule.callAttr("load_model").toString();
+            Toast.makeText(this, loadMsg, Toast.LENGTH_SHORT).show();
+            
+        } catch (Exception e) {
+            // tvResult.setText("错误: 无法加载 python 模块: " + e.getMessage());
+            e.printStackTrace();
+        }
+
+        // (演示) 我们假设按钮被点击
+        // btnPredict.setOnClickListener(new View.OnClickListener() {
+        //     @Override
+        //     public void onClick(View v) {
+        //         // 4. 准备输入数据 (这里使用假数据)
+        //         // 在你的 App 中, 你会从摄像头处理逻辑中获取这些值
+        //         double r_avg = 200.5;
+        //         double g_avg = 150.3;
+        //         double b_avg = 100.1;
+        //
+        //         predictAndShow(r_avg, g_avg, b_avg);
+        //     }
+        // });
+    }
+
+    /**
+     * 调用 Python 函数并显示结果
+     */
+    private void predictAndShow(double r_avg, double g_avg, double b_avg) {
+        if (pyModelModule != null) {
+            try {
+                // 5. 调用 Python 函数
+                //    调用 "model_predictor.py" 里的 "predict_spo2" 函数
+                //    并传入3个参数
+                PyObject resultObj = pyModelModule.callAttr("predict_spo2", r_avg, g_avg, b_avg);
+                
+                // 6. 获取返回值
+                double spo2_prediction = resultObj.toDouble();
+
+                // 7. 显示结果
+                String resultText;
+                if (spo2_prediction == -1.0) {
+                     resultText = "错误: 模型未加载";
+                } else if (spo2_prediction == -2.0) {
+                     resultText = "错误: 预测失败";
+                } else {
+                     resultText = String.format("预测血氧值: %.2f %%", spo2_prediction);
+                }
+                // tvResult.setText(resultText);
+
+            } catch (Exception e) {
+                // tvResult.setText("错误: 调用 python 失败: " + e.getMessage());
+                e.printStackTrace();
+            }
+        } else {
+            // tvResult.setText("错误: Python 模块未初始化。");
+        }
+    }
+
+    // 初始化 Python 环境
+    private void initPython() {
+        if (!Python.isStarted()) {
+            Python.start(new AndroidPlatform(this));
+        }
+    }
+}
