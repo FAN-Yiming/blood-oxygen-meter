@@ -1,13 +1,15 @@
 import pandas as pd
-from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.pipeline import Pipeline
+from sklearn.metrics import r2_score, mean_absolute_error
 import joblib # 导入 joblib
 import os     # 导入 os 来帮助构建文件路径
 
 # --- 1. 加载并合并所有数据文件 ---
 
 # !! 重要: 请把 'path/to/your/data/folder' 换成你存放6个CSV文件的实际文件夹路径 !!
-# 比如，如果你在 'blood-oxygen-meter/data' 文件夹下
 data_directory = 'blood-oxygen-meter/data' 
 
 # 6个数据文件的文件名
@@ -45,7 +47,7 @@ if all_files_found and all_data_frames:
     # 使用 pd.concat 将列表中的所有 DataFrame 合并成一个
     data = pd.concat(all_data_frames, ignore_index=True)
     print(f"\n成功合并所有数据！总行数: {len(data)}")
-
+    
     # --- 2. 准备 X (特征) 和 y (标签) ---
     
     # 检查CSV列名，这里我们假设特征是 'R_avg', 'G_avg', 'B_avg'
@@ -68,26 +70,44 @@ if all_files_found and all_data_frames:
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
         print(f"数据已分割: {len(X_train)}行用于训练, {len(X_test)}行用于测试。")
 
-        # --- 4. 创建并训练模型 ---
-        print("开始训练线性回归模型...")
-        model = LinearRegression()
-        model.fit(X_train, y_train)
+        # --- 4. 创建模型管道 (Pipeline) ---
+        # 步骤1: 特征缩放 (StandardScaler) - 使所有特征的均值为0，方差为1
+        # 步骤2: 模型 (RandomForestRegressor) - 使用随机森林回归器，它比线性回归更强大
+        
+        print("创建机器学习管道 (Pipeline)...")
+        model_pipeline = Pipeline([
+            ('scaler', StandardScaler()),
+            ('model', RandomForestRegressor(n_estimators=100, random_state=42, n_jobs=-1)) 
+            # n_estimators=100 表示使用100棵树
+            # n_jobs=-1 表示使用所有可用的CPU核心进行训练
+        ])
+
+        # --- 5. 训练模型 ---
+        print("开始训练随机森林模型...")
+        model_pipeline.fit(X_train, y_train)
         print("模型训练完毕！")
 
-        # --- 5. 评估模型 ---
-        score = model.score(X_test, y_test)
-        print(f"模型在测试集上的 R^2 分数: {score:.4f}")
-        print("(R^2 分数越接近 1.0 越好)")
+        # --- 6. 评估模型 ---
+        print("开始在测试集上评估模型...")
+        y_pred = model_pipeline.predict(X_test)
+        
+        score_r2 = r2_score(y_test, y_pred)
+        score_mae = mean_absolute_error(y_test, y_pred)
+        
+        print(f"模型在测试集上的 R^2 分数: {score_r2:.4f} (越接近 1.0 越好)")
+        print(f"模型在测试集上的 MAE (平均绝对误差): {score_mae:.4f} (越接近 0 越好)")
+        print(f"(MAE 意味着模型的预测平均偏离 {score_mae:.4f} 个SpO2单位)")
 
-        # --- 6. 保存模型 ---
-        # 将训练好的模型保存为 .pkl 文件
-        # 这个文件需要被放到你的安卓APP的 assets 目录中
-        model_filename = 'spo2_model_combined.pkl'
-        joblib.dump(model, model_filename)
-        print(f"模型已保存为: {model_filename}")
+        # --- 7. 保存模型 ---
+        # 将训练好的 *整个管道* 保存为 .pkl 文件
+        # 这非常重要！因为现在你的安卓APP也需要先对数据进行'scaler'转换
+        # 把管道保存下来，安卓APP调用时会自动完成缩放+预测
+        
+        model_filename = 'spo2_model_combined_rf.pkl' # 更改了文件名以作区分
+        joblib.dump(model_pipeline, model_filename)
+        print(f"模型管道 (Pipeline) 已保存为: {model_filename}")
 
 elif not all_files_found:
     print("\n由于文件缺失，模型训练已停止。")
 else:
     print("\n没有加载到任何数据，请检查你的路径和文件。")
-
